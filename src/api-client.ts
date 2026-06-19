@@ -1,57 +1,74 @@
 import * as http from 'http';
 import * as vscode from 'vscode';
 
-export interface TokenUsage {
-  input_tokens: number;
-  output_tokens: number;
-  cache_read_tokens: number;
-  cache_creation_tokens: number;
-}
-
-export interface ApiCall {
+export interface CallRecord {
   timestamp: string;
   model: string;
-  usage: TokenUsage;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  method: string;
 }
 
-export interface SessionData {
-  start_time: string;
-  usage: TokenUsage;
-  model_breakdown: { [model: string]: TokenUsage };
-  recent_calls: ApiCall[];
-  call_count: number;
+export interface SessionUsage {
+  id: string;
+  startTime: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  callCount: number;
+  recentCalls: CallRecord[];
+}
+
+export interface AllTimeUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  callCount: number;
 }
 
 export interface UsageData {
-  all_time: TokenUsage;
-  all_time_model_breakdown: { [model: string]: TokenUsage };
-  all_time_call_count: number;
-  session: SessionData;
+  session: SessionUsage;
+  allTime: AllTimeUsage;
 }
 
-function getBackendUrl(): string {
-  return vscode.workspace.getConfiguration('tokenMeter').get<string>('backendUrl', 'http://localhost:3847');
+export interface StatusResponse {
+  status: string;
+  isConfigured: boolean;
+  backendUrl: string;
+}
+
+function getBackendUrl(): { hostname: string; port: number } {
+  const base = vscode.workspace.getConfiguration('tokenMeter').get<string>('backendUrl', 'http://localhost:3847');
+  try {
+    const u = new URL(base);
+    return { hostname: u.hostname, port: parseInt(u.port, 10) || 3847 };
+  } catch {
+    return { hostname: 'localhost', port: 3847 };
+  }
 }
 
 function request(method: string, path: string, body?: unknown): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const base = getBackendUrl();
-    let hostname = 'localhost';
-    let port = 3847;
-    try {
-      const u = new URL(base);
-      hostname = u.hostname;
-      port = parseInt(u.port, 10) || 3847;
-    } catch { /* use defaults */ }
-
+    const { hostname, port } = getBackendUrl();
     const postData = body ? JSON.stringify(body) : undefined;
     const req = http.request(
-      { hostname, port, path, method, headers: { 'Content-Type': 'application/json' }, timeout: 3000 },
+      { hostname, port, path, method, headers: { 'Content-Type': 'application/json' }, timeout: 5000 },
       (res) => {
         let data = '';
         res.on('data', (chunk) => (data += chunk));
         res.on('end', () => {
-          try { resolve(JSON.parse(data)); } catch { reject(new Error('Invalid JSON')); }
+          try {
+            const parsed = JSON.parse(data);
+            if (res.statusCode && res.statusCode >= 400) {
+              reject(new Error(parsed.error ?? `HTTP ${res.statusCode}`));
+            } else {
+              resolve(parsed);
+            }
+          } catch { reject(new Error('Invalid JSON')); }
         });
       }
     );
@@ -62,12 +79,20 @@ function request(method: string, path: string, body?: unknown): Promise<unknown>
   });
 }
 
-export async function checkStatus(): Promise<boolean> {
+export async function checkStatus(): Promise<StatusResponse | null> {
   try {
-    await request('GET', '/api/status');
-    return true;
+    return (await request('GET', '/api/status')) as StatusResponse;
   } catch {
-    return false;
+    return null;
+  }
+}
+
+export async function configureApiKey(apiKey: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const result = (await request('POST', '/api/configure', { apiKey })) as { success: boolean };
+    return result;
+  } catch (err: any) {
+    return { success: false, error: err.message };
   }
 }
 
@@ -79,17 +104,9 @@ export async function getUsage(): Promise<UsageData | null> {
   }
 }
 
-export async function getSession(): Promise<SessionData | null> {
-  try {
-    return (await request('GET', '/api/session')) as SessionData;
-  } catch {
-    return null;
-  }
-}
-
 export async function resetSession(): Promise<boolean> {
   try {
-    await request('POST', '/api/reset');
+    await request('POST', '/api/reset-session');
     return true;
   } catch {
     return false;

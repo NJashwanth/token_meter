@@ -19,8 +19,8 @@ export class StatusBarManager {
   }
 
   update(data: UsageData): void {
-    const s = data.session.usage;
-    const total = s.input_tokens + s.output_tokens;
+    const s = data.session;
+    const total = s.inputTokens + s.outputTokens;
     const threshold = vscode.workspace.getConfiguration('tokenMeter').get<number>('warningThreshold', 100000);
 
     let icon: string;
@@ -36,8 +36,8 @@ export class StatusBarManager {
       color = undefined;
     }
 
-    this.item.text = `${icon} In: ${formatCount(s.input_tokens)} | Out: ${formatCount(s.output_tokens)}`;
-    this.item.tooltip = `Token Meter — Session Total: ${total.toLocaleString()}\nInput: ${s.input_tokens.toLocaleString()} | Output: ${s.output_tokens.toLocaleString()}\nCache Read: ${s.cache_read_tokens.toLocaleString()} | Cache Write: ${s.cache_creation_tokens.toLocaleString()}\nCalls: ${data.session.call_count}`;
+    this.item.text = `${icon} In: ${formatCount(s.inputTokens)} | Out: ${formatCount(s.outputTokens)}`;
+    this.item.tooltip = `Token Meter — Session Total: ${total.toLocaleString()}\nInput: ${s.inputTokens.toLocaleString()} | Output: ${s.outputTokens.toLocaleString()}\nCache Read: ${s.cacheReadTokens.toLocaleString()} | Cache Write: ${s.cacheCreationTokens.toLocaleString()}\nCalls: ${s.callCount}`;
     this.item.color = color;
     this.item.backgroundColor = total >= threshold ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;
     this.connected = true;
@@ -45,7 +45,7 @@ export class StatusBarManager {
 
   setDisconnected(): void {
     this.item.text = '$(debug-disconnect) Token Meter: Offline';
-    this.item.tooltip = 'Token Meter backend not detected. Run `token-meter-tracker` to start.';
+    this.item.tooltip = 'Token Meter backend not detected. Run the backend service to start.';
     this.item.color = new vscode.ThemeColor('disabledForeground');
     this.item.backgroundColor = undefined;
     this.connected = false;

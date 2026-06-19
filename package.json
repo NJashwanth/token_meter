@@ -2,7 +2,7 @@
   "name": "token-meter",
   "displayName": "Token Meter",
   "description": "Track Claude API token consumption in real-time",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "publisher": "JashwanthNeela",
   "engines": {
     "vscode": "^1.85.0"
@@ -43,10 +43,21 @@
     "configuration": {
       "title": "Token Meter",
       "properties": {
+        "tokenMeter.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Your Claude API key (stored securely via VS Code SecretStorage)",
+          "markdownDescription": "Your Claude API key. Get one at [console.anthropic.com](https://console.anthropic.com/account/keys)."
+        },
         "tokenMeter.backendUrl": {
           "type": "string",
           "default": "http://localhost:3847",
-          "description": "URL of the Token Meter backend tracker service"
+          "description": "URL of the Token Meter backend proxy service"
+        },
+        "tokenMeter.backendPort": {
+          "type": "number",
+          "default": 3847,
+          "description": "Port for the Token Meter backend service"
         },
         "tokenMeter.refreshInterval": {
           "type": "number",

@@ -1,38 +1,38 @@
-export interface TokenUsage {
-  input_tokens: number;
-  output_tokens: number;
-  cache_read_tokens: number;
-  cache_creation_tokens: number;
-}
-
-export interface ApiCall {
+export interface CallRecord {
   timestamp: string;
   model: string;
-  usage: TokenUsage;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  method: string;
 }
 
-export interface ModelBreakdown {
-  [model: string]: TokenUsage;
+export interface Totals {
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  callCount: number;
 }
 
 export interface SessionData {
-  start_time: string;
-  usage: TokenUsage;
-  model_breakdown: ModelBreakdown;
-  recent_calls: ApiCall[];
-  call_count: number;
+  id: string;
+  startTime: string;
+  calls: CallRecord[];
+  totals: Totals;
 }
 
-export interface UsageData {
-  all_time: TokenUsage;
-  all_time_model_breakdown: ModelBreakdown;
-  all_time_call_count: number;
-  session: SessionData;
+export interface UsageFile {
+  apiKeyHash: string;
+  sessions: SessionData[];
+  allTimeTotals: Totals;
 }
 
-export const EMPTY_USAGE: TokenUsage = {
-  input_tokens: 0,
-  output_tokens: 0,
-  cache_read_tokens: 0,
-  cache_creation_tokens: 0,
+export const EMPTY_TOTALS: Totals = {
+  inputTokens: 0,
+  outputTokens: 0,
+  cacheCreationTokens: 0,
+  cacheReadTokens: 0,
+  callCount: 0,
 };
