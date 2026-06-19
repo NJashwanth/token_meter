@@ -1,0 +1,74 @@
+{
+  "name": "token-meter",
+  "displayName": "Token Meter",
+  "description": "Track Claude API token consumption in real-time",
+  "version": "0.1.0",
+  "publisher": "JashwanthNeela",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "token-meter",
+          "title": "Token Meter",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "token-meter": [
+        {
+          "type": "webview",
+          "id": "tokenMeter.sidebar",
+          "name": "Token Usage"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "tokenMeter.resetSession",
+        "title": "Token Meter: Reset Session"
+      },
+      {
+        "command": "tokenMeter.showDashboard",
+        "title": "Token Meter: Show Dashboard"
+      }
+    ],
+    "configuration": {
+      "title": "Token Meter",
+      "properties": {
+        "tokenMeter.backendUrl": {
+          "type": "string",
+          "default": "http://localhost:3847",
+          "description": "URL of the Token Meter backend tracker service"
+        },
+        "tokenMeter.refreshInterval": {
+          "type": "number",
+          "default": 2000,
+          "minimum": 500,
+          "description": "UI update frequency in milliseconds"
+        },
+        "tokenMeter.warningThreshold": {
+          "type": "number",
+          "default": 100000,
+          "description": "Show warning when session tokens exceed this count"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./tsconfig.json",
+    "watch": "tsc -watch -p ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.2"
+  }
+}

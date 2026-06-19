@@ -1,0 +1,81 @@
+name: Publish to VS Code Marketplace
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Read package metadata
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if [[ -z "$name" || -z "$version" ]]; then
+            echo "Could not read name/version from package.json"
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether version already exists on Marketplace
+        id: version_check
+        shell: bash
+        run: |
+          set -euo pipefail
+          publisher=$(node -p "require('./package.json').publisher")
+          name='${{ steps.package.outputs.name }}'
+          version='${{ steps.package.outputs.version }}'
+          if npx @vscode/vsce show "${publisher}.${name}" --json 2>/dev/null | node -e "
+            const data = require('fs').readFileSync('/dev/stdin','utf8');
+            const info = JSON.parse(data);
+            const versions = info.versions.map(v => v.version);
+            process.exit(versions.includes('${version}') ? 0 : 1);
+          " 2>/dev/null; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "Version $version is already published. Skipping."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+            echo "Version $version not found. Proceeding."
+          fi
+
+      - name: Publish to VS Code Marketplace
+        if: ${{ steps.version_check.outputs.already_published == 'false' }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx @vscode/vsce publish -p "$VSCE_PAT"
+
+      - name: Create GitHub Release
+        if: ${{ steps.version_check.outputs.already_published == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version='${{ steps.package.outputs.version }}'
+          gh release create "v${version}" \
+            --title "v${version}" \
+            --generate-notes \
+            --target main
