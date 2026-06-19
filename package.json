@@ -2,11 +2,12 @@
   "name": "token-meter",
   "displayName": "Token Meter",
   "description": "Track Claude API token consumption in real-time",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "JashwanthNeela",
   "engines": {
     "vscode": "^1.85.0"
   },
+  "icon": "media/extension-icon.png",
   "categories": ["Other"],
   "activationEvents": ["onStartupFinished"],
   "main": "./dist/extension.js",
