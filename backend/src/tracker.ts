@@ -1,11 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { UsageData, TokenUsage, ApiCall, EMPTY_USAGE } from './types';
+import * as crypto from 'crypto';
+import { UsageFile, SessionData, CallRecord, Totals, EMPTY_TOTALS } from './types';
 
 const DATA_DIR = path.join(os.homedir(), '.token-meter');
 const USAGE_FILE = path.join(DATA_DIR, 'usage.json');
 const MAX_RECENT_CALLS = 10;
+const MAX_STORED_SESSIONS = 50;
 
 function ensureDataDir(): void {
   if (!fs.existsSync(DATA_DIR)) {
@@ -13,115 +15,113 @@ function ensureDataDir(): void {
   }
 }
 
-function createEmptyUsageData(): UsageData {
-  return {
-    all_time: { ...EMPTY_USAGE },
-    all_time_model_breakdown: {},
-    all_time_call_count: 0,
-    session: {
-      start_time: new Date().toISOString(),
-      usage: { ...EMPTY_USAGE },
-      model_breakdown: {},
-      recent_calls: [],
-      call_count: 0,
-    },
-  };
+function hashKey(apiKey: string): string {
+  return crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
 }
 
-function addTokens(target: TokenUsage, source: TokenUsage): void {
-  target.input_tokens += source.input_tokens;
-  target.output_tokens += source.output_tokens;
-  target.cache_read_tokens += source.cache_read_tokens;
-  target.cache_creation_tokens += source.cache_creation_tokens;
+function generateSessionId(): string {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10).replace(/-/g, '_');
+  const seq = Math.floor(Math.random() * 1000);
+  return `session_${date}_${seq}`;
 }
 
-function addToModelBreakdown(
-  breakdown: { [model: string]: TokenUsage },
-  model: string,
-  usage: TokenUsage
-): void {
-  if (!breakdown[model]) {
-    breakdown[model] = { ...EMPTY_USAGE };
-  }
-  addTokens(breakdown[model], usage);
+function addToTotals(target: Totals, record: CallRecord): void {
+  target.inputTokens += record.inputTokens;
+  target.outputTokens += record.outputTokens;
+  target.cacheCreationTokens += record.cacheCreationTokens;
+  target.cacheReadTokens += record.cacheReadTokens;
+  target.callCount++;
 }
 
 export class TokenTracker {
-  private data: UsageData;
+  private data: UsageFile;
+  private currentSession: SessionData;
+  private apiKey: string | null = null;
 
   constructor() {
     ensureDataDir();
     this.data = this.load();
-    this.data.session = {
-      start_time: new Date().toISOString(),
-      usage: { ...EMPTY_USAGE },
-      model_breakdown: {},
-      recent_calls: [],
-      call_count: 0,
-    };
+    this.currentSession = this.createSession();
   }
 
-  private load(): UsageData {
+  private load(): UsageFile {
     try {
       if (fs.existsSync(USAGE_FILE)) {
         const raw = fs.readFileSync(USAGE_FILE, 'utf-8');
-        const parsed = JSON.parse(raw) as UsageData;
+        const parsed = JSON.parse(raw) as UsageFile;
         return {
-          ...createEmptyUsageData(),
-          all_time: parsed.all_time ?? { ...EMPTY_USAGE },
-          all_time_model_breakdown: parsed.all_time_model_breakdown ?? {},
-          all_time_call_count: parsed.all_time_call_count ?? 0,
+          apiKeyHash: parsed.apiKeyHash ?? '',
+          sessions: parsed.sessions ?? [],
+          allTimeTotals: parsed.allTimeTotals ?? { ...EMPTY_TOTALS },
         };
       }
     } catch {
-      // Corrupted file — start fresh
+      // corrupted — start fresh
     }
-    return createEmptyUsageData();
+    return { apiKeyHash: '', sessions: [], allTimeTotals: { ...EMPTY_TOTALS } };
   }
 
   private save(): void {
     ensureDataDir();
-    fs.writeFileSync(USAGE_FILE, JSON.stringify(this.data, null, 2));
+    const toSave: UsageFile = {
+      ...this.data,
+      sessions: [
+        ...this.data.sessions.slice(-MAX_STORED_SESSIONS),
+        { ...this.currentSession, calls: this.currentSession.calls.slice(-MAX_RECENT_CALLS) },
+      ],
+    };
+    fs.writeFileSync(USAGE_FILE, JSON.stringify(toSave, null, 2));
   }
 
-  recordUsage(model: string, usage: TokenUsage): void {
-    const call: ApiCall = {
-      timestamp: new Date().toISOString(),
-      model,
-      usage,
+  private createSession(): SessionData {
+    return {
+      id: generateSessionId(),
+      startTime: new Date().toISOString(),
+      calls: [],
+      totals: { ...EMPTY_TOTALS },
     };
+  }
 
-    addTokens(this.data.session.usage, usage);
-    addToModelBreakdown(this.data.session.model_breakdown, model, usage);
-    this.data.session.call_count++;
-    this.data.session.recent_calls.push(call);
-    if (this.data.session.recent_calls.length > MAX_RECENT_CALLS) {
-      this.data.session.recent_calls.shift();
+  configure(apiKey: string): void {
+    this.apiKey = apiKey;
+    this.data.apiKeyHash = hashKey(apiKey);
+    this.save();
+  }
+
+  getApiKey(): string | null {
+    return this.apiKey;
+  }
+
+  isConfigured(): boolean {
+    return this.apiKey !== null;
+  }
+
+  recordCall(record: CallRecord): void {
+    this.currentSession.calls.push(record);
+    if (this.currentSession.calls.length > MAX_RECENT_CALLS) {
+      this.currentSession.calls.shift();
     }
-
-    addTokens(this.data.all_time, usage);
-    addToModelBreakdown(this.data.all_time_model_breakdown, model, usage);
-    this.data.all_time_call_count++;
-
+    addToTotals(this.currentSession.totals, record);
+    addToTotals(this.data.allTimeTotals, record);
     this.save();
   }
 
-  getUsage(): UsageData {
-    return this.data;
-  }
-
-  getSession() {
-    return this.data.session;
-  }
-
-  resetSession(): void {
-    this.data.session = {
-      start_time: new Date().toISOString(),
-      usage: { ...EMPTY_USAGE },
-      model_breakdown: {},
-      recent_calls: [],
-      call_count: 0,
+  getUsage() {
+    return {
+      session: {
+        id: this.currentSession.id,
+        startTime: this.currentSession.startTime,
+        ...this.currentSession.totals,
+        recentCalls: this.currentSession.calls.slice().reverse(),
+      },
+      allTime: { ...this.data.allTimeTotals },
     };
+  }
+
+  resetSession() {
+    this.currentSession = this.createSession();
     this.save();
+    return this.getUsage();
   }
 }
