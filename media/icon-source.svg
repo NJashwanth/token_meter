@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#1e2a3a"/>
+      <stop offset="100%" stop-color="#0f1923"/>
+    </linearGradient>
+    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3b9eff"/>
+      <stop offset="45%" stop-color="#f0883e"/>
+      <stop offset="100%" stop-color="#e54545"/>
+    </linearGradient>
+    <linearGradient id="needle" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#c0c0c0"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full background -->
+  <rect width="256" height="256" rx="40" fill="url(#bg)"/>
+
+  <!-- Subtle grid lines for depth -->
+  <circle cx="128" cy="160" r="85" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.05"/>
+  <circle cx="128" cy="160" r="65" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.05"/>
+
+  <!-- Gauge track (dark) -->
+  <path d="M43 160 A85 85 0 1 1 213 160" fill="none" stroke="#2a3a4a" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- Gauge arc (colored) -->
+  <path d="M43 160 A85 85 0 1 1 213 160" fill="none" stroke="url(#arc)" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Tick marks -->
+  <line x1="68" y1="85" x2="76" y2="93" stroke="#3b9eff" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <line x1="95" y1="62" x2="100" y2="72" stroke="#4da6ff" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <line x1="128" y1="54" x2="128" y2="65" stroke="#7ee787" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <line x1="161" y1="62" x2="156" y2="72" stroke="#f0883e" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <line x1="188" y1="85" x2="180" y2="93" stroke="#e54545" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- Needle shadow -->
+  <line x1="130" y1="162" x2="170" y2="88" stroke="#000000" stroke-width="5" stroke-linecap="round" opacity="0.3"/>
+  <!-- Needle -->
+  <line x1="128" y1="160" x2="168" y2="86" stroke="url(#needle)" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Center hub outer -->
+  <circle cx="128" cy="160" r="12" fill="#3b9eff"/>
+  <!-- Center hub inner -->
+  <circle cx="128" cy="160" r="6" fill="#0f1923"/>
+
+  <!-- Label -->
+  <text x="128" y="210" text-anchor="middle" font-family="SF Pro Display, Helvetica Neue, Arial, sans-serif" font-size="22" font-weight="700" fill="#6b7d8e" letter-spacing="4">TOKENS</text>
+</svg>
